@@ -1,0 +1,5 @@
+# Reprograma: Uma simulação social baseada em agentes para análise das desigualdades de gênero na tecnologia
+
+Conforme subimos análise na escala de poder e prestígio na carreira científica e tecnológica, menos vemos rostos femininos. Isso é explicado pelo fato da computação é construída entorno da masculinidade normativa, androcêntrica, branca, ocidental e heterossexual, que exclui qualquer indivíduo que não se enquadre nestes padrões. Pensar nas mulheres como sujeito da ciência e tecnologia faz com que surjam perguntas importantes na compreensão de fenômenos que ressignificaram sua participação na área. Uma abordagem pertinente para a compreensão destes fenômenos é a simulação social baseada em agentes, que possibilita a visão de questões centrais de um problema e estratégias de intervenção, através de complexos processos de interação e simulações computacionais. Para este trabalho, optou-se pela utilização do software NETLOGO na construção da simulação, visto que oferece benefícios de praticidade e simplicidade no desenvolvimento de uma simulação.
+
+Para visualizar a dissertação em construção veja: https://www.overleaf.com/read/gmvmbgktsyxf
