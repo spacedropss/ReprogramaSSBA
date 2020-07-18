@@ -201,16 +201,14 @@ to representatividade
 
   let mulher-chefe? false
   ask chefes [
-    if genero? [
+    if genero? = true [
       set mulher-chefe? true
     ]
   ]
-
   if mulher-chefe? [
     ask turtles [
       if genero? [
-        set motivacao motivacao + 1
-      ]
+
     ]
   ]
 
