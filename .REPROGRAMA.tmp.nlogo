@@ -1,6 +1,5 @@
 globals [
   chefes             ;; quem são os chefes ao final x tempo
-  mulheres-motivadas ;;quantos % persistem
   turnosomentehomens ;; quantas vezes somente homens serão chefes
   barreiras          ;; outras barrerias
   barreiras-chefia   ;; quantas vezes são disparadas barreiras na eleição de chefes
@@ -13,39 +12,11 @@ turtles-own [
   autoconfianca ;; acredita que é capaz = fator para se candidatar a chefia
   habilidades   ;; incrementadas a cada tick
   cargo?        ;; se verdadeiro chefe, falso funcionario comum
-
 ]
-
-patches-own
-[
-  motivation-source-number
-  motivation
-]
-
-to setup-postomotivacao
-   ask patches
-  [
-    if (distancexy 0 1 < 2)
-    [ set motivation-source-number 1 ]
-    if motivation-source-number > 0
-    [ set motivation one-of [1 2] ]
-
-    recolor-patch
-  ]
-end
-
-to recolor-patch  ;; patch procedure
-
-   if motivation > 0
-    [ if motivation-source-number = 1 [ set pcolor violet ]
-  ]
-end
-
 
 to debug
   ask chefes [
     show genero?
-    ;show resiliencia
     show motivacao
     show autoconfianca
     show habilidades
@@ -54,13 +25,6 @@ to debug
   ]
 end
 
-to update-globals
-  ;;contagem mulheres cargos de chefia
-  if count turtles > 0
-  [
-      set mulheres-motivadas (count turtles with [genero? and motivacao > 0] / count turtles) * 100
-  ]
-end
 
 to desistenciaambiente ;;se motivação acaba desiste
   if motivacao < 0
@@ -81,7 +45,6 @@ to setup
   clear-all
   setup-globals
   setup-people
-  setup-postomotivacao
   reset-ticks
 
 end
@@ -142,7 +105,6 @@ to chefes-inicial
 
 end
 
-;; --------------- ambiente
 
 ;; barreira da capacitação -  impede as mulheres de receber reconhecimento ou formação
 ;; mulheres não ganham habilidades no tick
@@ -204,14 +166,7 @@ to representatividade
     ]
   ]
 
-  ifelse mulher-chefe? [
-    ask turtles [
-      if genero? [
-        set motivacao motivacao + 1
-        set autoconfianca autoconfianca + 1
-      ]
-    ]
-  ]
+  if not mulher-chefe?
   [
     ask turtles [
       if genero? [
@@ -222,24 +177,7 @@ to representatividade
     set barreiras barreiras  + 1
     ]
 
-
 end
-
-;;;
-;;; TURTLE PROCEDURES
-;;;
-
-to procurar-apoio  ;; turtle procedure
-  if motivacao < 5
-  [
-    ;;caminhar ate posto
-  ]
-
-end
-
-;;;
-;;; GO PROCEDURES
-;;;
 
 to go
 
@@ -282,6 +220,109 @@ to go
   tick
 
 end
+
+
+;;;;;;;;;;;;;;;;;;;;;;; Cenario 2
+
+
+to go2
+
+ ifelse ticks > 0
+  ;if
+  [
+    if ticks mod 3 = 0
+    [
+      barreira-capacitacao
+      set barreiras barreiras + 1
+    ]
+
+    if ticks mod 4 = 0
+    [
+      ifelse ticks mod turnosomentehomens = 0
+      ;if
+      [
+        chefes-somente-homens
+        set barreiras-chefia barreiras-chefia + 1
+      ]
+      ;else
+      [
+        chefes-tetodevidro
+        set barreiras-chefia barreiras-chefia + 1
+      ]
+        representatividade2
+    ]
+  ]
+  ;else
+  [
+    chefes-inicial
+    representatividade2
+  ]
+  ask turtles
+  [
+    caminhar
+    desistenciaambiente
+  ]
+  tick
+
+end
+
+to setup2
+  clear-all
+  setup-globals
+  setup-people
+  setup-postomotivacao
+  reset-ticks
+
+end
+
+to procurar-apoio  ;; turtle procedure
+  if motivacao < 5
+  [
+    ;;caminhar ate posto
+  ]
+end
+
+to setup-postomotivacao
+   ask patches
+  [
+    if (distancexy 0 1 < 2)
+    [ set motivation-source-number 1 ]
+    if motivation-source-number > 0
+    [ set motivation one-of [1 2] ]
+
+    recolor-patch
+  ]
+end
+
+to representatividade2
+
+  let mulher-chefe? false
+
+  ask chefes [
+    if genero? [
+      set mulher-chefe? true
+    ]
+  ]
+
+  ifelse mulher-chefe? [
+    ask turtles [
+      if genero? [
+        set motivacao motivacao + 1
+        set autoconfianca autoconfianca + 1
+      ]
+    ]
+  ]
+  [
+    ask turtles [
+      if genero? [
+        set motivacao motivacao - 1
+        set autoconfianca autoconfianca - 1
+      ]
+    ]
+    set barreiras barreiras  + 1
+    ]
+
+end
 @#$#@#$#@
 GRAPHICS-WINDOW
 207
@@ -311,11 +352,11 @@ semanas
 30.0
 
 BUTTON
-12
-72
-102
-105
-Configurar
+14
+71
+155
+104
+Configura Cenário 1
 setup
 NIL
 1
@@ -328,11 +369,11 @@ NIL
 1
 
 BUTTON
-107
-72
-197
-105
-Iniciar
+14
+114
+154
+147
+Iniciar Cenário 1
 go
 T
 1
@@ -345,10 +386,10 @@ NIL
 0
 
 SLIDER
-13
-119
-198
-152
+14
+156
+199
+189
 numero-homens
 numero-homens
 0
@@ -361,19 +402,19 @@ HORIZONTAL
 
 TEXTBOX
 90
-20
+19
 789
-64
+63
 Reprograma: Simulação social dos desequilíbrios de gênero em tecnologia\n\n
 18
 0.0
 1
 
 SLIDER
-13
-159
-198
-192
+14
+196
+199
+229
 numero-mulheres
 numero-mulheres
 0
@@ -385,10 +426,10 @@ NIL
 HORIZONTAL
 
 SLIDER
-13
+14
+236
 199
-198
-232
+269
 habilidades-chefia
 habilidades-chefia
 1
@@ -400,10 +441,10 @@ NIL
 HORIZONTAL
 
 SLIDER
-13
-241
-198
-274
+14
+278
+199
+311
 autoconfianca-chefia
 autoconfianca-chefia
 1
@@ -415,15 +456,15 @@ NIL
 HORIZONTAL
 
 SLIDER
-13
-284
-198
-317
+14
+321
+199
+354
 tempo-simulacao
 tempo-simulacao
 0
 50
-32.0
+28.0
 1
 1
 NIL
@@ -484,6 +525,40 @@ false
 "" ""
 PENS
 "Barreiras" 1.0 0 -16777216 true "" "plot barreiras"
+
+BUTTON
+15
+366
+157
+399
+Configura Cenário 2
+setup2\n
+NIL
+1
+T
+OBSERVER
+NIL
+NIL
+NIL
+NIL
+1
+
+BUTTON
+16
+410
+158
+443
+Inicia Cenário 2
+go2
+T
+1
+T
+OBSERVER
+NIL
+NIL
+NIL
+NIL
+1
 
 @#$#@#$#@
 ## WHAT IS IT?
