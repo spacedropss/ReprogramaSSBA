@@ -1,22 +1,50 @@
 globals [
   chefes      ;; quem são os chefes ao final x tempo
   mulheres-motivadas ;;quantos % persistem
+  turnosomentehomens ;; quantas vezes somente homens serão chefes
   chefe-teste
 ]
 
 turtles-own [
   genero?       ;; se verdadeiro mulher, falso homem
-  resiliencia   ;; capacidade de se recuperar ou adaptar à situações, absorve mudanças negativas do ambiente
+  ;resiliencia   ;; capacidade de se recuperar ou adaptar à situações, absorve mudanças negativas do ambiente
   motivacao     ;; quando = 0 desiste do meio tecnológico
   autoconfianca ;; acredita que é capaz = fator para se candidatar a chefia
   habilidades   ;; incrementadas a cada tick
   cargo?        ;; se verdadeiro chefe, falso funcionario comum
+
 ]
+
+patches-own
+[
+  motivation-source-number
+  motivation
+]
+
+to setup-postomotivacao
+   ask patches
+  [
+    if (distancexy 0 1 < 2)
+    [ set motivation-source-number 1 ]
+    if motivation-source-number > 0
+    [ set motivation one-of [1 2] ]
+
+    recolor-patch
+  ]
+end
+
+to recolor-patch  ;; patch procedure
+
+   if motivation > 0
+    [ if motivation-source-number = 1 [ set pcolor violet ]
+  ]
+end
+
 
 to debug
   ask chefes [
     show genero?
-    show resiliencia
+    ;show resiliencia
     show motivacao
     show autoconfianca
     show habilidades
@@ -29,48 +57,15 @@ to update-globals
   ;;contagem mulheres cargos de chefia
   if count turtles > 0
   [
-      ;set chefes-mulheres (count turtles with [genero? and cargo?] / count turtles) * 100
       set mulheres-motivadas (count turtles with [genero? and motivacao > 0] / count turtles) * 100
   ]
 end
 
-to update-exibicao
-  ask turtles
-  [
-    ;;se genero feminino e chefe cores diferentes
-    ;; set color ifelse-value genero?
-    ;;    [ifelse-value cargo? [ magenta ] [ pink ]]
-    ;;[ ifelse-value cargo? [ sky ] [ blue ]]
-  ]
-end
-
 to desistenciaambiente ;;se motivação acaba desiste
+
   if motivacao = 0
-      [ die ]
-end
+        [ die ]
 
-;;;
-;;; INCREMENTS
-;;;
-
-to ganhahabilidades
-  set habilidades habilidades + 1
-end
-
-to ganhamotivacao
-  set motivacao motivacao + 1
-end
-
-to ganhaautoconfianca
-  set autoconfianca autoconfianca + 1
-end
-
-to ganhapromocao
-  set cargo? true
-end
-
-to perdepromocao
-  set cargo? false
 end
 
 to caminhar
@@ -78,7 +73,6 @@ to caminhar
   lt random 100
   fd 1
 end
-
 
 ;;;
 ;;; SETUP PROCEDURES
@@ -88,11 +82,21 @@ to setup
   clear-all
   setup-globals
   setup-people
+  setup-postomotivacao
   reset-ticks
 
 end
 
+
 to setup-globals
+
+  let qtdrandomico 0
+  while [qtdrandomico = 0] ;evitar 0
+  [
+    set qtdrandomico random 5  ;verifico quantas vezes randomicas > 0 < 5 no ano acontecerá o evento
+  ]
+  set turnosomentehomens (12 / qtdrandomico) * 4
+
 
 end
 
@@ -101,8 +105,11 @@ to setup-people
     [
       set genero? false
       set shape "homens"
-      set resiliencia   random 10
-      set motivacao     random 1.10
+      ;set resiliencia   random 10
+      while [motivacao = 0] ;evitar 0
+      [
+        set motivacao random 10
+      ]
       set autoconfianca random 10
       set habilidades   random 10
       set cargo? false
@@ -111,13 +118,16 @@ to setup-people
     [
       set genero? true
       set shape "mulheres"
-      set resiliencia   random 10
-      set motivacao     random 1.10
+      ;set resiliencia   random 10
+      set motivacao 0
+      while [motivacao = 0] ;evitar 0
+      [
+        set motivacao random 10
+      ]
       set autoconfianca random 10
       set habilidades   random 10
       set cargo? false
    ]
-
  end
 
 to chefes-inicial
@@ -135,28 +145,16 @@ end
 
 ;; --------------- ambiente
 
-;; barreira da diferença - preconceitos que descreditam habilidades das mulheres em ciências exatas
-;; mulheres sofrem --habilidades
-to barreira-diferenca
-
-  ask turtles
-  [
-    ; caso seja mulher, perde um ponto de habilidade
-    if genero?
-      [set habilidades habilidades - 1]
-  ]
-
-end
-
 ;; barreira da capacitação -  impede as mulheres de receber reconhecimento ou formação
 ;; mulheres não ganham habilidades no tick
 to barreira-capacitacao
-
    ask turtles
   [
     ; caso seja homem, ganha um ponto de habilidade
-    if genero? = false
+    ifelse genero?
+      [ set motivacao motivacao - 1]
       [ set habilidades habilidades + 1 ]
+
   ]
 
 end
@@ -200,20 +198,42 @@ end
 to representatividade
 
   let mulher-chefe? false
+
   ask chefes [
     if genero? [
       set mulher-chefe? true
     ]
   ]
 
-  if mulher-chefe? [
+  ifelse mulher-chefe? [
     ask turtles [
       if genero? [
         set motivacao motivacao + 1
+        set autoconfianca autoconfianca + 1
       ]
     ]
   ]
+  [
+    ask turtles [
+      if genero? [
+        set motivacao motivacao - 1
+        set autoconfianca autoconfianca - 1
+      ]
+    ]
+    ]
 
+
+end
+
+;;;
+;;; TURTLE PROCEDURES
+;;;
+
+to procurar-apoio  ;; turtle procedure
+  if motivacao < 5
+  [
+    ;;caminhar ate posto
+  ]
 
 end
 
@@ -223,25 +243,46 @@ end
 
 to go
 
-  ;chefes-inicial
-  ;chefes-somente-homens
-  chefes-tetodevidro
+ ifelse ticks > 0
 
-  ;show ticks
-  ;let mudanca ticks mod 12
-  ;if mudanca = 0  or ticks = 0 [ chefes-inicial]
-  ;ask turtles
-  ;[
-  ;  caminhar
-  ;]
+  ;if
+  [
+    if ticks mod 3 = 0
+    [
+      barreira-capacitacao
+      show "barreira"
+    ]
 
-  ;chefes-inicial
-  ;; ciclo de anos ou ate acabarema as mulheres
-  ;; cada 12 meses eleição de chefes
-  ;;
+    if ticks mod 4 = 0
+    [
+      ifelse ticks mod turnosomentehomens = 0
+      ;if
+      [
+        chefes-somente-homens
+        show "barreira"
+      ]
+      ;else
+      [
+        chefes-tetodevidro
+        show "barreira"
+      ]
+        representatividade
+    ]
+  ]
+  ;else
+  [
+    chefes-inicial
+    representatividade
+  ]
+  ask turtles
+  [
+  caminhar
+  desistenciaambiente
+  ]
+
+
 
   tick
-
 end
 @#$#@#$#@
 GRAPHICS-WINDOW
@@ -265,8 +306,8 @@ GRAPHICS-WINDOW
 16
 -16
 16
-0
-0
+1
+1
 1
 semanas
 30.0
@@ -295,7 +336,7 @@ BUTTON
 105
 Iniciar
 go
-NIL
+T
 1
 T
 OBSERVER
@@ -314,79 +355,11 @@ numero-homens
 numero-homens
 0
 100
-85.0
+46.0
 1
 1
 NIL
 HORIZONTAL
-
-BUTTON
-14
-195
-199
-228
-Barreira Capacitação
-barreira-capacitacao
-NIL
-1
-T
-OBSERVER
-NIL
-NIL
-NIL
-NIL
-1
-
-BUTTON
-15
-236
-198
-269
-Barreira da Diferença
-barreira-diferenca
-NIL
-1
-T
-OBSERVER
-NIL
-NIL
-NIL
-NIL
-1
-
-BUTTON
-15
-278
-198
-311
-Pensar gerente = Homem
-chefes-somente-homens
-NIL
-1
-T
-OBSERVER
-NIL
-NIL
-NIL
-NIL
-1
-
-BUTTON
-16
-319
-197
-352
-Teto de Vidro
-chefes-tetodevidro
-NIL
-1
-T
-OBSERVER
-NIL
-NIL
-NIL
-NIL
-1
 
 TEXTBOX
 90
@@ -399,45 +372,60 @@ Reprograma: Simulação social dos desequilíbrios de gênero em tecnologia\n\n
 1
 
 SLIDER
-14
-156
-199
-189
+13
+159
+198
+192
 numero-mulheres
 numero-mulheres
 0
 100
-19.0
+34.0
 1
 1
 NIL
 HORIZONTAL
 
 SLIDER
-17
-369
-189
-402
+13
+199
+198
+232
 habilidades-chefia
 habilidades-chefia
 1
 10
-4.0
+1.0
 1
 1
 NIL
 HORIZONTAL
 
 SLIDER
-17
-411
-189
-444
+13
+241
+198
+274
 autoconfianca-chefia
 autoconfianca-chefia
 1
 10
-4.0
+1.0
+1
+1
+NIL
+HORIZONTAL
+
+SLIDER
+13
+284
+198
+317
+tempo-simulacao
+tempo-simulacao
+0
+50
+32.0
 1
 1
 NIL
