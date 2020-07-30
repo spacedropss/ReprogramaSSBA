@@ -3,6 +3,8 @@ globals [
   turnosomentehomens ;; quantas vezes somente homens serão chefes
   barreiras          ;; outras barrerias
   barreiras-chefia   ;; quantas vezes são disparadas barreiras na eleição de chefes
+  apoios             ;; apoios distribuidos
+  igualdade?         ;; quando 70% dos chefes forem mulheres ambiente desconstrói barreiras
 ]
 
 patches-own
@@ -17,6 +19,7 @@ turtles-own [
   autoconfianca ;; acredita que é capaz = fator para se candidatar a chefia
   habilidades   ;; incrementadas a cada tick
   cargo?        ;; se verdadeiro chefe, falso funcionario comum
+  recebeuapoio? ;; se a turtle recebeu apoio
 
   ;; informação sobre o centro de apoio
   info-apoio?     ;; sabe onde fica o apoio de mulheres
@@ -102,6 +105,7 @@ to setup-people
       set autoconfianca random 10
       set habilidades   random 10
       set cargo? false
+      set recebeuapoio? false
 
       set info-apoio? false
       set info-apoio-xcor 0
@@ -241,12 +245,23 @@ to ambiente-comum
   ]
 
   if ticks mod 24 = 0
-  [ ask turtles
+  [
+  habilidadestodos
+  ]
+end
+
+to habilidadestodos
+
+  ask turtles
     [ if habilidades < 10
       [ set habilidades habilidades + 1 ]
     ]
-  ]
 
+end
+
+to verificaigualdade
+  if count chefes with [ genero? ] / count chefes * 100 >= 70
+  [set igualdade? true]
 end
 
 to go
@@ -289,7 +304,7 @@ to go
   tick
 end
 
-to go2
+to go3
   ; verifica se é uma leitura inicial do cenário ou não
   ifelse ticks > 0
   [
@@ -309,7 +324,7 @@ to go2
         set barreiras-chefia barreiras-chefia + 1
         ]
       ]
-        representatividade2
+        ;representatividade2
     ]
   ]
   ;else
@@ -343,6 +358,69 @@ to go2
   tick
 
 end
+
+to go2
+  ; verifica se é uma leitura inicial do cenário ou não
+  ifelse ticks > 0
+  [
+    ifelse igualdade?
+    [
+      ambiente-comum
+      if ticks mod 4 = 0  [chefes-igualitarios]
+    ]
+     ;; else igualdade
+    [
+      ambiente-comum
+
+      if ticks mod 4 = 0
+      [
+       ifelse ticks mod turnosomentehomens = 0
+        [ chefes-somente-homens
+          set barreiras-chefia barreiras-chefia + 1
+        ]
+        ;else ticks mod 4 = 0
+        [
+        chefes-tetodevidro
+        set barreiras-chefia barreiras-chefia + 1
+        ]
+
+       verificaigualdade
+       representatividade2
+     ]
+   ]
+  ]
+    ;else ticks > 0
+  [
+    chefes-inicial
+    representatividade2
+  ]
+
+  ask turtles
+  [
+    caminhar2
+    desistenciaambiente
+  ]
+
+  let mulherviva? false
+  ifelse ticks = tempo-simulacao * 12 * 4 ;ticks em semanas tempo simulacao em anos
+  [stop]
+  ;else
+  [
+    ask turtles
+    [
+      if genero?
+      [
+        set mulherviva? true
+      ]
+    ]
+
+    if not mulherviva? [stop]
+  ]
+
+  tick
+
+end
+
 
 to caminhar2 ;; turtle procedure
 
@@ -393,6 +471,9 @@ to setup2
   setup-globals
   setup-people
   setup-postomotivacao
+
+  set igualdade? false ;;ambiente começa desigual
+
   reset-ticks
 
 end
@@ -405,6 +486,8 @@ to procurar-apoio  ;; turtle procedure
   [ set motivacao      one-of [6 7 8 9 10]
     if autoconfianca < 10
     [ set autoconfianca  autoconfianca + 1 ]
+    set apoios apoios + 1
+    set recebeuapoio? true
   ]
   ;else
   [ ifelse info-apoio? ;; verifica se a turtle sabe onde é o centro de apoio
@@ -476,13 +559,13 @@ to representatividade2
 end
 @#$#@#$#@
 GRAPHICS-WINDOW
-207
+213
 71
-776
-641
+770
+629
 -1
 -1
-17.0
+16.64
 1
 10
 1
@@ -545,7 +628,7 @@ numero-homens
 numero-homens
 0
 100
-52.0
+100.0
 1
 1
 NIL
@@ -570,7 +653,7 @@ numero-mulheres
 numero-mulheres
 0
 100
-48.0
+100.0
 1
 1
 NIL
@@ -615,7 +698,7 @@ tempo-simulacao
 tempo-simulacao
 0
 10
-10.0
+4.0
 1
 1
 NIL
@@ -659,10 +742,10 @@ PENS
 "Homens" 1.0 0 -7500403 true "" "plot count chefes with [not genero?]"
 
 PLOT
-794
-447
-1139
-567
+793
+449
+1138
+569
 Barreiras Apresentadas na Simulaçao
 Tempo
 Quantidade de Barreiras
@@ -674,7 +757,8 @@ true
 false
 "" ""
 PENS
-"Barreiras" 1.0 0 -16777216 true "" "plot barreiras"
+"Barreiras" 1.0 0 -2674135 true "" "plot barreiras"
+"Apoios" 1.0 0 -14439633 true "" "plot apoios"
 
 BUTTON
 15
@@ -711,13 +795,24 @@ NIL
 1
 
 MONITOR
-823
-597
-1307
-642
-NIL
+793
+581
+954
+626
+%Mulheres Sabem Apoio
 count turtles with [info-apoio?] * 100 / count turtles with [genero?]
 2
+1
+11
+
+MONITOR
+963
+581
+1129
+626
+% Recebeu Apoio
+count turtles with [genero?] with [recebeuapoio?] * 100 / count turtles with [genero?]
+17
 1
 11
 
