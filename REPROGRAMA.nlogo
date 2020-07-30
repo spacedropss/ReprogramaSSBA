@@ -1,9 +1,13 @@
 globals [
   chefes             ;; quem são os chefes ao final x tempo
-  mulheres-motivadas ;;quantos % persistem
   turnosomentehomens ;; quantas vezes somente homens serão chefes
   barreiras          ;; outras barrerias
   barreiras-chefia   ;; quantas vezes são disparadas barreiras na eleição de chefes
+]
+
+patches-own
+[
+  eh-centro-apoio? ;; é um centro de apoio
 ]
 
 turtles-own [
@@ -14,38 +18,15 @@ turtles-own [
   habilidades   ;; incrementadas a cada tick
   cargo?        ;; se verdadeiro chefe, falso funcionario comum
 
+  ;; informação sobre o centro de apoio
+  info-apoio?     ;; sabe onde fica o apoio de mulheres
+  info-apoio-xcor ;; localização apoio coordenada X
+  info-apoio-ycor ;; localização apoio coordenada X
 ]
-
-patches-own
-[
-  motivation-source-number
-  motivation
-]
-
-to setup-postomotivacao
-   ask patches
-  [
-    if (distancexy 0 1 < 2)
-    [ set motivation-source-number 1 ]
-    if motivation-source-number > 0
-    [ set motivation one-of [1 2] ]
-
-    recolor-patch
-  ]
-end
-
-to recolor-patch  ;; patch procedure
-
-   if motivation > 0
-    [ if motivation-source-number = 1 [ set pcolor violet ]
-  ]
-end
-
 
 to debug
   ask chefes [
     show genero?
-    ;show resiliencia
     show motivacao
     show autoconfianca
     show habilidades
@@ -54,23 +35,17 @@ to debug
   ]
 end
 
-to update-globals
-  ;;contagem mulheres cargos de chefia
-  if count turtles > 0
-  [
-      set mulheres-motivadas (count turtles with [genero? and motivacao > 0] / count turtles) * 100
-  ]
-end
 
 to desistenciaambiente ;;se motivação acaba desiste
-  if motivacao < 0
-        [ die ]
+  if motivacao <= 0
+  [ die ]
 end
 
 to caminhar
-  rt random 100
-  lt random 100
-  fd 1
+    rt random 100
+    lt random 100
+
+    fd 1
 end
 
 ;;;
@@ -81,7 +56,6 @@ to setup
   clear-all
   setup-globals
   setup-people
-  setup-postomotivacao
   reset-ticks
 
 end
@@ -101,17 +75,19 @@ end
 
 to setup-people
   create-turtles numero-homens
-    [
-      set genero? false
-      set shape "homens"
-      ;set resiliencia   random 10
-      while [motivacao = 0] ;evitar 0
-      [
-        set motivacao random 10
-      ]
-      set autoconfianca random 10
-      set habilidades   random 10
-      set cargo? false
+   [
+     set genero? false
+     set shape "homens"
+     ;set resiliencia   random 10
+     while [motivacao = 0] ;evitar 0
+     [ set motivacao random 10 ]
+     set autoconfianca random 10
+     set habilidades   random 10
+     set cargo? false
+
+     set info-apoio? false
+     set info-apoio-xcor 0
+     set info-apoio-ycor 0
    ]
   create-turtles numero-mulheres
     [
@@ -126,6 +102,10 @@ to setup-people
       set autoconfianca random 10
       set habilidades   random 10
       set cargo? false
+
+      set info-apoio? false
+      set info-apoio-xcor 0
+      set info-apoio-ycor 0
    ]
  end
 
@@ -138,22 +118,29 @@ to chefes-inicial
   set chefes-list chefes-list with [autoconfianca > autoconfianca-chefia]
 
   ; filtra apenas as 10 melhores turtles baseado em suas habilidades
-  set chefes max-n-of 10 chefes-list [habilidades]
+  ; caso não tenha 10 turtles restantes, pega todas as que passaram no filtro
+  let maximo-chefes 10
+  if maximo-chefes > count chefes-list
+  [ set maximo-chefes count chefes-list ]
+
+  set chefes max-n-of maximo-chefes chefes-list [habilidades]
 
 end
 
-;; --------------- ambiente
 
 ;; barreira da capacitação -  impede as mulheres de receber reconhecimento ou formação
 ;; mulheres não ganham habilidades no tick
 to barreira-capacitacao
-   ask turtles
-  [
-    ; caso seja homem, ganha um ponto de habilidade
-    ifelse genero?
-      [ set motivacao motivacao - 1]
-      [ set habilidades habilidades + 1 ]
-
+ ask turtles
+ [ ; caso seja homem, ganha um ponto de habilidade
+   ifelse genero?
+   [ if motivacao > 0
+     [ set motivacao motivacao - 1]
+   ]
+   ;else
+   [ if habilidades < 10
+     [ set habilidades habilidades + 1 ]
+   ]
   ]
 
 end
@@ -166,7 +153,12 @@ to chefes-somente-homens
   let chefes-list turtles with [genero? = false]
 
   ; filtra apenas as 10 melhores turtles baseado em suas habilidades
-  set chefes max-n-of 10 chefes-list [habilidades]
+  ; caso não tenha 10 turtles restantes, pega todas as que passaram no filtro
+  let maximo-chefes 10
+  if maximo-chefes > count chefes-list
+  [ set maximo-chefes count chefes-list ]
+
+  set chefes max-n-of maximo-chefes chefes-list [habilidades]
 
 end
 
@@ -188,7 +180,29 @@ to chefes-tetodevidro
   let chefes-list (turtle-set chefes-homens chefes-mulheres)
 
   ; filtra apenas as 10 melhores turtles baseado em suas habilidades
-  set chefes max-n-of 10 chefes-list [habilidades]
+  ; caso não tenha 10 turtles restantes, pega todas as que passaram no filtro
+  let maximo-chefes 10
+  if maximo-chefes > count chefes-list
+  [ set maximo-chefes count chefes-list ]
+
+  set chefes max-n-of maximo-chefes chefes-list [habilidades]
+
+end
+
+;; chefes igualitarios
+to chefes-igualitarios
+
+  ; filtra turtles que atendam aos requisitos setados pelo usuário
+  let chefes-list turtles with [habilidades > habilidades-chefia]
+  set chefes-list chefes-list with [autoconfianca > autoconfianca-chefia]
+
+  ; filtra apenas as 10 melhores turtles baseado em suas habilidades
+  ; caso não tenha 10 turtles restantes, pega todas as que passaram no filtro
+  let maximo-chefes 10
+  if maximo-chefes > count chefes-list
+  [ set maximo-chefes count chefes-list ]
+
+  set chefes max-n-of maximo-chefes chefes-list [habilidades]
 
 end
 
@@ -204,82 +218,260 @@ to representatividade
     ]
   ]
 
-  ifelse mulher-chefe? [
-    ask turtles [
-      if genero? [
-        set motivacao motivacao + 1
-        set autoconfianca autoconfianca + 1
-      ]
-    ]
-  ]
-  [
-    ask turtles [
-      if genero? [
-        set motivacao motivacao - 1
-        set autoconfianca autoconfianca - 1
+  if not mulher-chefe?
+  [ ask turtles
+    [ if genero?
+      [ if motivacao > 0
+        [ set motivacao motivacao - 1 ]
+
+        if autoconfianca > 0
+        [ set autoconfianca autoconfianca - 1 ]
       ]
     ]
     set barreiras barreiras  + 1
-    ]
-
+   ]
 
 end
 
-;;;
-;;; TURTLE PROCEDURES
-;;;
 
-to procurar-apoio  ;; turtle procedure
-  if motivacao < 5
-  [
-    ;;caminhar ate posto
+to ambiente-comum
+  if ticks mod 32 = 0
+  [ barreira-capacitacao
+    set barreiras barreiras + 1
+  ]
+
+  if ticks mod 24 = 0
+  [ ask turtles
+    [ if habilidades < 10
+      [ set habilidades habilidades + 1 ]
+    ]
   ]
 
 end
 
-;;;
-;;; GO PROCEDURES
-;;;
-
 to go
-
- ifelse ticks > 0
-
-  ;if
-  [
-    if ticks mod 3 = 0
-    [
-      barreira-capacitacao
-      set barreiras barreiras + 1
-    ]
-
+  ifelse ticks > 0
+  [ ambiente-comum
     if ticks mod 4 = 0
-    [
-      ifelse ticks mod turnosomentehomens = 0
-      ;if
-      [
-        chefes-somente-homens
+    [ ifelse ticks mod turnosomentehomens = 0
+      [ chefes-somente-homens
         set barreiras-chefia barreiras-chefia + 1
       ]
       ;else
-      [
-        chefes-tetodevidro
+      [ chefes-tetodevidro
         set barreiras-chefia barreiras-chefia + 1
       ]
-        representatividade
+
+      representatividade
+    ]
+  ]
+  ;else
+  [ chefes-inicial
+    representatividade
+  ]
+
+  ask turtles
+  [ caminhar
+    desistenciaambiente
+  ]
+
+  let mulherviva? false
+  ifelse ticks = tempo-simulacao * 12 * 4
+  [ stop ]
+  ;else
+  [ ask turtles
+    [ if genero?
+      [ set mulherviva? true ]
+    ]
+    if not mulherviva? [ stop ]
+  ]
+
+  tick
+end
+
+to go2
+  ; verifica se é uma leitura inicial do cenário ou não
+  ifelse ticks > 0
+  [
+    ambiente-comum
+
+    if ticks mod 4 = 0
+    [ ifelse count chefes with [ genero? ] / count chefes * 100 >= 70
+      [ chefes-igualitarios ]
+      ;else
+      [ ifelse ticks mod turnosomentehomens = 0
+        [ chefes-somente-homens
+          set barreiras-chefia barreiras-chefia + 1
+        ]
+        ;else
+        [
+        chefes-tetodevidro
+        set barreiras-chefia barreiras-chefia + 1
+        ]
+      ]
+        ;representatividade2
     ]
   ]
   ;else
   [
     chefes-inicial
-    representatividade
+    representatividade2
   ]
+
   ask turtles
   [
-    caminhar
+    caminhar2
     desistenciaambiente
   ]
+
+  let mulherviva? false
+  ifelse ticks = tempo-simulacao * 12 * 4 ;ticks em semanas tempo simulacao em anos
+  [stop]
+  ;else
+  [
+    ask turtles
+    [
+      if genero?
+      [
+        set mulherviva? true
+      ]
+    ]
+
+    if not mulherviva? [stop]
+  ]
+
   tick
+
+end
+
+to caminhar2 ;; turtle procedure
+
+  ; se for mulher e estiver com motivação menor que 5, busca apoio
+  ifelse genero? and motivacao < 5
+  [
+    procurar-apoio
+  ]
+  ;else
+  [
+    caminhar
+
+    ; Verifica se passou em frente a um centro de apoio
+    if eh-centro-apoio? and genero?
+    [
+      set info-apoio? true
+      set info-apoio-xcor xcor
+      set info-apoio-ycor ycor
+    ]
+
+    if info-apoio?
+    [ let info-xcor info-apoio-xcor
+      let info-ycor info-apoio-ycor
+
+      ask turtles-on neighbors
+      [ if genero?
+        [ set info-apoio-xcor info-xcor
+          set info-apoio-ycor info-ycor
+          set info-apoio? true
+        ]
+      ]
+    ]
+
+  ]
+end
+
+
+to testamulheres
+
+
+end
+
+
+;----------------------------------- Cenario 2 -----------------------------------
+
+to setup2
+  clear-all
+  setup-globals
+  setup-people
+  setup-postomotivacao
+  reset-ticks
+
+end
+
+to procurar-apoio  ;; turtle procedure
+  let passos-tick 1
+
+  ;; verifica se a turtle já está em um centro de apoio
+  ifelse eh-centro-apoio?
+  [ set motivacao      one-of [6 7 8 9 10]
+    if autoconfianca < 10
+    [ set autoconfianca  autoconfianca + 1 ]
+  ]
+  ;else
+  [ ifelse info-apoio? ;; verifica se a turtle sabe onde é o centro de apoio
+    [ ifelse info-apoio-xcor > xcor
+      [ setxy (xcor + passos-tick) ycor ]
+      ;else
+      [ setxy (xcor - passos-tick) ycor ]
+
+      ifelse info-apoio-ycor > ycor
+      [ setxy xcor (ycor + passos-tick) ]
+      ;else
+      [ setxy xcor (ycor - passos-tick) ]
+    ]
+    ;else
+    [ caminhar ]
+  ]
+
+end
+
+;; muda cor do patch caso seja um centro de apoio
+to recolor-patch  ;; patch procedure
+   if eh-centro-apoio? [ set pcolor violet ]
+end
+
+to setup-postomotivacao
+  ask patches
+  [
+    set eh-centro-apoio? (distancexy -4 -7 < 2)
+    recolor-patch
+  ]
+end
+
+to representatividade2
+
+  let mulher-chefe? false
+
+  ask chefes [
+    if genero? [
+      set mulher-chefe? true
+    ]
+  ]
+
+  ;; verifica se há uma mulher chefe
+  ifelse mulher-chefe? [
+    ask turtles [
+      if genero? [
+        if motivacao < 10
+        [ set motivacao motivacao + 1 ]
+
+        if autoconfianca < 10
+        [ set autoconfianca autoconfianca + 1 ]
+      ]
+    ]
+  ]
+  ;else
+  [
+    ask turtles [
+      if genero?
+      [ if motivacao > 0
+        [ set motivacao motivacao - 1 ]
+
+        if autoconfianca > 0
+        [ set autoconfianca autoconfianca - 1 ]
+      ]
+    ]
+    set barreiras barreiras  + 1
+    ]
 
 end
 @#$#@#$#@
@@ -311,11 +503,11 @@ semanas
 30.0
 
 BUTTON
-12
-72
-102
-105
-Configurar
+14
+71
+155
+104
+Configura Cenário 1
 setup
 NIL
 1
@@ -328,11 +520,11 @@ NIL
 1
 
 BUTTON
-107
-72
-197
-105
-Iniciar
+14
+114
+154
+147
+Iniciar Cenário 1
 go
 T
 1
@@ -345,15 +537,15 @@ NIL
 0
 
 SLIDER
-13
-119
-198
-152
+14
+156
+199
+189
 numero-homens
 numero-homens
 0
 100
-33.0
+52.0
 1
 1
 NIL
@@ -361,69 +553,69 @@ HORIZONTAL
 
 TEXTBOX
 90
-20
+19
 789
-64
+63
 Reprograma: Simulação social dos desequilíbrios de gênero em tecnologia\n\n
 18
 0.0
 1
 
 SLIDER
-13
-159
-198
-192
+14
+196
+199
+229
 numero-mulheres
 numero-mulheres
 0
 100
-34.0
+48.0
 1
 1
 NIL
 HORIZONTAL
 
 SLIDER
-13
+14
+236
 199
-198
-232
+269
 habilidades-chefia
 habilidades-chefia
-1
+0
 10
-1.0
+6.0
 1
 1
 NIL
 HORIZONTAL
 
 SLIDER
-13
-241
-198
-274
+14
+278
+199
+311
 autoconfianca-chefia
 autoconfianca-chefia
-1
+0
 10
-1.0
+6.0
 1
 1
 NIL
 HORIZONTAL
 
 SLIDER
-13
-284
-198
-317
+14
+321
+199
+354
 tempo-simulacao
 tempo-simulacao
 0
-50
-32.0
+10
+10.0
 1
 1
 NIL
@@ -433,8 +625,8 @@ PLOT
 793
 73
 1139
-223
-População no ambiente
+235
+Mulheres no Ambiente
 Semanas
 Quantidade População
 0.0
@@ -446,13 +638,12 @@ true
 " set-plot-y-range 0 (numero-homens + 5)" ""
 PENS
 "Mulheres" 1.0 0 -2064490 true "" "plot count turtles with [genero?]"
-"Homens" 1.0 0 -11221820 true "" "plot count turtles with [not genero?]"
 
 PLOT
 794
-235
+249
 1140
-385
+438
 Cargos Chefia
 Semanas
 Quantidade Chefes
@@ -469,21 +660,66 @@ PENS
 
 PLOT
 794
-401
+447
 1139
-551
+567
 Barreiras Apresentadas na Simulaçao
 Tempo
 Quantidade de Barreiras
 0.0
 10.0
 0.0
-50.0
+10.0
 true
 false
 "" ""
 PENS
 "Barreiras" 1.0 0 -16777216 true "" "plot barreiras"
+
+BUTTON
+15
+366
+157
+399
+Configura Cenário 2
+setup2\n
+NIL
+1
+T
+OBSERVER
+NIL
+NIL
+NIL
+NIL
+1
+
+BUTTON
+16
+410
+158
+443
+Inicia Cenário 2
+go2
+T
+1
+T
+OBSERVER
+NIL
+NIL
+NIL
+NIL
+1
+
+MONITOR
+823
+597
+1307
+642
+NIL
+count turtles with [info-apoio?] * 100 / count turtles with [genero?]
+2
+1
+11
 
 @#$#@#$#@
 ## WHAT IS IT?
